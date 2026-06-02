@@ -57,6 +57,15 @@ func ParseUrl(input string) (*Url, error) {
 	}, nil
 }
 
+func (url Url) RequestString() string {
+	sb := strings.Builder{}
+	sb.WriteString(fmt.Sprintf("connecting to %s\n", url.host))
+	sb.WriteString(fmt.Sprintf("Sending request GET /%s HTTP/1.1\n", url.path))
+	sb.WriteString(fmt.Sprintf("Host: %s\n", url.host))
+	sb.WriteString("Accept: */*\n")
+	return sb.String()
+}
+
 // Parses a leading protocol from input.
 //
 // It returns the parsed protocol, remaining input.

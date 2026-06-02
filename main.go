@@ -27,5 +27,5 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Println(url)
+	fmt.Println(url.RequestString())
 }
