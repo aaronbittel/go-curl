@@ -1,0 +1,22 @@
+version: '3'
+
+vars:
+  BUILD_DIR: build
+  EXE_NAME: go-curl
+  BIN_PATH: "{{.BUILD_DIR}}/{{.EXE_NAME}}"
+
+tasks:
+  default:
+    cmds:
+      - task: build
+
+  build:
+    cmd: go build -o "{{.BIN_PATH}}"
+
+  run:
+    deps: [build]
+    cmd: ./"{{.BIN_PATH}}" {{.CLI_ARGS}}
+
+  test:
+    deps: [build]
+    cmd: go test {{.CLI_ARGS}}

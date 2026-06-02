@@ -6,5 +6,12 @@ curl](https://codingchallenges.fyi/challenges/challenge-curl).
 ## Usage
 
 ```bash
-make run
+go build -o build/go-curl
+./build/go-curl http://eu.httpbin.org/get
+```
+
+- using Taskfile
+
+```bash
+task run -- http://eu.httpbin.org/get
 ```
