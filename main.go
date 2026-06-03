@@ -3,6 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 )
 
@@ -27,5 +29,28 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Println(url.RequestString())
+	req, err := NewRequest("GET", url)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR: creating request: %s\n", err)
+		os.Exit(1)
+	}
+	fmt.Println(req.RequestString())
+
+	client := &http.Client{}
+	resp, err := client.Do(req.Req)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR: sending request %s: %s\n", url.RequestUrl(), err)
+		os.Exit(1)
+	}
+	DumpResponse(resp)
+	fmt.Println()
+
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR: reading response body %s: %s\n", url.RequestUrl(), err)
+		os.Exit(1)
+	}
+
+	fmt.Println(string(body))
 }
