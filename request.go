@@ -33,13 +33,15 @@ func (req Request) RequestString() string {
 	return sb.String()
 }
 
-func DumpResponse(resp *http.Response) {
-	fmt.Println(resp.Proto, resp.Status)
-	fmt.Println("Date:", resp.Header.Get("Date"))
-	fmt.Println("Content-Type:", resp.Header.Get("Content-Type"))
-	fmt.Println("Content-Length:", resp.Header.Get("Content-Length"))
-	fmt.Println("Connection:", resp.Header.Get("Connection"))
-	fmt.Println("Server:", resp.Header.Get("Server"))
-	fmt.Println("Access-Control-Allow-Origin:", resp.Header.Get("Access-Control-Allow-Origin"))
-	fmt.Println("Access-Control-Allow-Credentials:", resp.Header.Get("Access-Control-Allow-Credentials"))
+func DumpResponse(resp *http.Response) string {
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("%s %s\n", resp.Proto, resp.Status))
+	sb.WriteString(fmt.Sprintf("Date: %s\n", resp.Header.Get("Date")))
+	sb.WriteString(fmt.Sprintf("Content-Type: %s\n", resp.Header.Get("Content-Type")))
+	sb.WriteString(fmt.Sprintf("Content-Length: %s\n", resp.Header.Get("Content-Length")))
+	sb.WriteString(fmt.Sprintf("Connection: %s\n", resp.Header.Get("Connection")))
+	sb.WriteString(fmt.Sprintf("Server: %s\n", resp.Header.Get("Server")))
+	sb.WriteString(fmt.Sprintf("Access-Control-Allow-Origin: %s\n", resp.Header.Get("Access-Control-Allow-Origin")))
+	sb.WriteString(fmt.Sprintf("Access-Control-Allow-Credentials: %s\n", resp.Header.Get("Access-Control-Allow-Credentials")))
+	return sb.String()
 }
