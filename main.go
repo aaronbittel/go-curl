@@ -5,11 +5,13 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"strings"
 )
 
 var verbose bool
+var method string
 
 var positionalArgs = []string{"url"}
 
@@ -21,6 +23,7 @@ func init() {
 
 	flag.BoolVar(&verbose, "verbose", defaultVerbose, verboseUsage)
 	flag.BoolVar(&verbose, "v", defaultVerbose, verboseUsage+" (shorthand)")
+	flag.StringVar(&method, "X", http.MethodGet, "Specify method")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage %s <url>\n", os.Args[0])
@@ -49,11 +52,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	req, err := NewRequest("GET", url)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "ERROR: creating request: %s\n", err)
-		os.Exit(1)
-	}
+	req := NewRequest(method, url)
 
 	if verbose {
 		printOutgoing(req.RequestString())

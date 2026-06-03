@@ -8,34 +8,12 @@ import (
 
 type Method int
 
-const (
-	GET Method = iota
-)
-
 const Version = "HTTP/1.1"
 
 type Request struct {
-	Method Method
+	Method string
 	Url    *Url
 	Header http.Header
-}
-
-func ParseMethod(method string) (Method, error) {
-	switch strings.ToUpper(method) {
-	case "GET":
-		return GET, nil
-	default:
-		return 0, fmt.Errorf("unknown method %q", method)
-	}
-}
-
-func (m Method) String() string {
-	switch m {
-	case GET:
-		return "GET"
-	default:
-		return ""
-	}
 }
 
 func (req Request) build() string {
@@ -53,7 +31,7 @@ func (req Request) build() string {
 func (req Request) RequestString() string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("connecting to %s\n", req.Url.host))
-	sb.WriteString(fmt.Sprintf("Sending request GET /%s HTTP/1.1\n", req.Url.path))
+	sb.WriteString(fmt.Sprintf("Sending request %s /%s HTTP/1.1\n", req.Method, req.Url.path))
 	for k := range req.Header {
 		sb.WriteString(fmt.Sprintf("%s: %s\n", k, req.Header.Get(k)))
 	}

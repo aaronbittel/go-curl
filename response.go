@@ -28,18 +28,13 @@ type ResponseBody struct {
 	conn net.Conn
 }
 
-func NewRequest(method string, url *Url) (*Request, error) {
+func NewRequest(method string, url *Url) *Request {
 	header := http.Header{}
 	header.Set("Host", url.host)
 	header.Set("Accept", "*/*")
 	header.Set("Connection", "close")
 
-	m, err := ParseMethod(method)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Request{Method: m, Url: url, Header: header}, nil
+	return &Request{Method: method, Url: url, Header: header}
 }
 
 func (req Request) Send() (*Response, error) {
