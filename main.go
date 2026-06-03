@@ -37,9 +37,25 @@ func (h headers) Set(arg string) error {
 	return nil
 }
 
+type methodValue string
+
+func (m methodValue) String() string {
+	return string(m)
+}
+
+func (m *methodValue) Set(arg string) error {
+	method := strings.ToUpper(arg)
+	if method == http.MethodHead {
+		return errors.New("use '--head/-I' to use method HEAD")
+	}
+	*m = methodValue(method)
+	return nil
+}
+
 var verbose bool
-var method string
 var data string
+var headMethod bool
+var methodFlag methodValue = methodValue(http.MethodGet)
 var headerFlag = make(headers)
 
 var positionalArgs = []string{"url"}
@@ -53,15 +69,20 @@ func init() {
 
 		defaultData = ""
 		dataUsage   = "Add data payload"
+
+		defaultHead = false
+		headUsage   = "Use method HEAD"
 	)
 
 	flag.BoolVar(&verbose, "verbose", defaultVerbose, verboseUsage)
 	flag.BoolVar(&verbose, "v", defaultVerbose, verboseUsage+" (shorthand)")
-	flag.StringVar(&method, "X", http.MethodGet, "Specify method")
+	flag.Var(&methodFlag, "X", "Specify method")
 	flag.Var(&headerFlag, "header", headerUsage)
 	flag.Var(&headerFlag, "H", headerUsage+" (shorthand)")
 	flag.StringVar(&data, "data", defaultData, dataUsage)
 	flag.StringVar(&data, "d", defaultData, dataUsage+" (shorthand)")
+	flag.BoolVar(&headMethod, "head", defaultHead, headUsage)
+	flag.BoolVar(&headMethod, "I", defaultHead, headUsage+" (shorthand)")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage %s <url>\n", os.Args[0])
@@ -88,6 +109,12 @@ func main() {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ERROR: %s\n", err)
 		os.Exit(1)
+	}
+
+	method := string(methodFlag)
+	if headMethod {
+		method = http.MethodHead
+		data = ""
 	}
 
 	req := NewRequest(method, url, data)
@@ -118,7 +145,16 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Println(string(bytes.TrimSpace(data)))
+	if headMethod {
+		fmt.Println(resp.StatusLine)
+		for k, vs := range resp.Header {
+			for _, v := range vs {
+				fmt.Printf("%s: %s\n", k, v)
+			}
+		}
+	} else {
+		fmt.Println(string(bytes.TrimSpace(data)))
+	}
 }
 
 func printOutgoing(str string) {
