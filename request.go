@@ -6,42 +6,56 @@ import (
 	"strings"
 )
 
+type Method int
+
+const (
+	GET Method = iota
+)
+
+const Version = "HTTP/1.1"
+
 type Request struct {
-	Req *http.Request
-	Url *Url
+	Method Method
+	Url    *Url
+	Header http.Header
 }
 
-func NewRequest(method string, url *Url) (*Request, error) {
-	req, err := http.NewRequest("GET", url.RequestUrl(), nil)
-	if err != nil {
-		return nil, err
+func ParseMethod(method string) (Method, error) {
+	switch strings.ToUpper(method) {
+	case "GET":
+		return GET, nil
+	default:
+		return 0, fmt.Errorf("unknown method %q", method)
 	}
-	req.Header.Set("Host", url.host)
-	req.Header.Set("Accept", "*/*")
-	req.Header.Set("Connection", "close")
+}
 
-	return &Request{Req: req, Url: url}, nil
+func (m Method) String() string {
+	switch m {
+	case GET:
+		return "GET"
+	default:
+		return ""
+	}
+}
+
+func (req Request) build() string {
+	var buf strings.Builder
+
+	buf.WriteString(fmt.Sprintf("%s /%s %s\r\n", req.Method, req.Url.path, Version))
+	for k, v := range req.Header {
+		buf.WriteString(fmt.Sprintf("%s: %s\r\n", k, v))
+	}
+	buf.WriteString("\r\n")
+
+	return buf.String()
 }
 
 func (req Request) RequestString() string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("connecting to %s\n", req.Url.host))
 	sb.WriteString(fmt.Sprintf("Sending request GET /%s HTTP/1.1\n", req.Url.path))
-	for k := range req.Req.Header {
-		sb.WriteString(fmt.Sprintf("%s: %s\n", k, req.Req.Header.Get(k)))
+	for k, v := range req.Header {
+		sb.WriteString(fmt.Sprintf("%s: %s\n", k, v))
 	}
-	return sb.String()
-}
-
-func DumpResponse(resp *http.Response) string {
-	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("%s %s\n", resp.Proto, resp.Status))
-	sb.WriteString(fmt.Sprintf("Date: %s\n", resp.Header.Get("Date")))
-	sb.WriteString(fmt.Sprintf("Content-Type: %s\n", resp.Header.Get("Content-Type")))
-	sb.WriteString(fmt.Sprintf("Content-Length: %s\n", resp.Header.Get("Content-Length")))
-	sb.WriteString(fmt.Sprintf("Connection: %s\n", resp.Header.Get("Connection")))
-	sb.WriteString(fmt.Sprintf("Server: %s\n", resp.Header.Get("Server")))
-	sb.WriteString(fmt.Sprintf("Access-Control-Allow-Origin: %s\n", resp.Header.Get("Access-Control-Allow-Origin")))
-	sb.WriteString(fmt.Sprintf("Access-Control-Allow-Credentials: %s\n", resp.Header.Get("Access-Control-Allow-Credentials")))
 	return sb.String()
 }

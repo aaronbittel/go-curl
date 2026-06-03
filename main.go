@@ -1,10 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"strings"
 )
@@ -59,25 +59,24 @@ func main() {
 		printOutgoing(req.RequestString())
 	}
 
-	client := &http.Client{}
-	resp, err := client.Do(req.Req)
+	resp, err := req.Send()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "ERROR: sending request %s: %s\n", url.RequestUrl(), err)
+		fmt.Fprintf(os.Stderr, "ERROR: sending request: %s\n", err)
 		os.Exit(1)
 	}
+	defer resp.Body.Close()
 
 	if verbose {
 		printIncoing(DumpResponse(resp))
 	}
 
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
+	data, err := io.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "ERROR: reading response body %s: %s\n", url.RequestUrl(), err)
+		fmt.Fprintf(os.Stderr, "ERROR: reading body: %s\n", err)
 		os.Exit(1)
 	}
 
-	fmt.Println(string(body))
+	fmt.Println(string(bytes.TrimSpace(data)))
 }
 
 func printOutgoing(str string) {
