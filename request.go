@@ -18,15 +18,16 @@ type Request struct {
 	Method string
 	Url    *Url
 	Header http.Header
+	Body   string
 }
 
-func NewRequest(method string, url *Url) *Request {
+func NewRequest(method string, url *Url, body string) *Request {
 	header := http.Header{}
 	header.Set("Host", url.host)
 	header.Set("Accept", "*/*")
 	header.Set("Connection", "close")
 
-	return &Request{Method: method, Url: url, Header: header}
+	return &Request{Method: method, Url: url, Header: header, Body: body}
 }
 
 func (req Request) Send() (*Response, error) {
@@ -79,6 +80,38 @@ func (req Request) Send() (*Response, error) {
 	}, nil
 }
 
+func (req Request) RequestString() string {
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("connecting to %s\n", req.Url.host))
+	sb.WriteString(fmt.Sprintf("Sending request %s /%s HTTP/1.1\n", req.Method, req.Url.path))
+	for k, vs := range req.Header {
+		for _, v := range vs {
+			sb.WriteString(fmt.Sprintf("%s: %s\n", k, v))
+		}
+	}
+	return sb.String()
+}
+
+func (req Request) build() string {
+	var buf strings.Builder
+
+	buf.WriteString(fmt.Sprintf("%s /%s %s\r\n", req.Method, req.Url.path, Version))
+	for k, vs := range req.Header {
+		for _, v := range vs {
+			buf.WriteString(fmt.Sprintf("%s: %s\r\n", k, v))
+		}
+	}
+
+	if req.Body != "" {
+		buf.WriteString(fmt.Sprintf("Content-Length: %d\r\n", len(req.Body)))
+	}
+
+	buf.WriteString("\r\n")
+	buf.WriteString(req.Body)
+
+	return buf.String()
+}
+
 func parseStatusLine(statusLine string) (*StatusLine, error) {
 	parts := strings.SplitN(statusLine, " ", 3)
 
@@ -122,30 +155,4 @@ func readHttpLine(r *bufio.Reader) (string, error) {
 		return "", fmt.Errorf("missing \"\r\n\"")
 	}
 	return httpLine, nil
-}
-
-func (req Request) build() string {
-	var buf strings.Builder
-
-	buf.WriteString(fmt.Sprintf("%s /%s %s\r\n", req.Method, req.Url.path, Version))
-	for k, vs := range req.Header {
-		for _, v := range vs {
-			buf.WriteString(fmt.Sprintf("%s: %s\r\n", k, v))
-		}
-	}
-	buf.WriteString("\r\n")
-
-	return buf.String()
-}
-
-func (req Request) RequestString() string {
-	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("connecting to %s\n", req.Url.host))
-	sb.WriteString(fmt.Sprintf("Sending request %s /%s HTTP/1.1\n", req.Method, req.Url.path))
-	for k, vs := range req.Header {
-		for _, v := range vs {
-			sb.WriteString(fmt.Sprintf("%s: %s\n", k, v))
-		}
-	}
-	return sb.String()
 }

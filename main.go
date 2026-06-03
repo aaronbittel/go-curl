@@ -50,6 +50,9 @@ func init() {
 		verboseUsage   = "Verbose output (dump headers)"
 
 		headerUsage = "Add a header (can be used mulite times)"
+
+		defaultData = ""
+		dataUsage   = "Add data payload"
 	)
 
 	flag.BoolVar(&verbose, "verbose", defaultVerbose, verboseUsage)
@@ -57,6 +60,8 @@ func init() {
 	flag.StringVar(&method, "X", http.MethodGet, "Specify method")
 	flag.Var(&headerFlag, "header", headerUsage)
 	flag.Var(&headerFlag, "H", headerUsage+" (shorthand)")
+	flag.StringVar(&data, "data", defaultData, dataUsage)
+	flag.StringVar(&data, "d", defaultData, dataUsage+" (shorthand)")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage %s <url>\n", os.Args[0])
@@ -85,7 +90,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	req := NewRequest(method, url)
+	req := NewRequest(method, url, data)
 	for k, vs := range headerFlag {
 		for _, v := range vs {
 			req.Header.Add(k, v)
