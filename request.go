@@ -3,9 +3,15 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"compress/bzip2"
+	"compress/gzip"
+	"compress/zlib"
+	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
+	"net/http/httputil"
 	"strconv"
 	"strings"
 )
@@ -13,6 +19,7 @@ import (
 type Method int
 
 const Version = "HTTP/1.1"
+const CRLF = "\r\n"
 
 type Request struct {
 	Method string
@@ -38,8 +45,8 @@ func (req Request) Send() (*Response, error) {
 
 	conn.Write([]byte(req.build()))
 
-	r := bufio.NewReader(conn)
-	statusLineRaw, err := readHttpLine(r)
+	br := bufio.NewReader(conn)
+	statusLineRaw, err := readHttpLine(br)
 	if err != nil {
 		return nil, err
 	}
@@ -51,14 +58,21 @@ func (req Request) Send() (*Response, error) {
 	header := http.Header{}
 
 	for {
-		nextTwo, err := r.Peek(2)
+		nextTwo, err := br.Peek(len(CRLF))
 		if err != nil {
 			return nil, err
 		}
-		if bytes.Equal(nextTwo, []byte("\r\n")) {
+		if bytes.Equal(nextTwo, []byte(CRLF)) {
+			discarded, err := br.Discard(len(CRLF))
+			if err != nil {
+				return nil, errors.New("discarding '\r\n' failed")
+			}
+			if discarded != len(CRLF) {
+				return nil, errors.New("discarding '\r\n' failed")
+			}
 			break
 		}
-		headerLine, err := readHttpLine(r)
+		headerLine, err := readHttpLine(br)
 		if err != nil {
 			return nil, err
 		}
@@ -70,13 +84,35 @@ func (req Request) Send() (*Response, error) {
 		header.Set(strings.TrimSpace(key), strings.TrimSpace(value))
 	}
 
+	var body io.ReadCloser = io.NopCloser(br)
+
+	if hasChunked(header.Get("Transfer-Encoding")) {
+		body = io.NopCloser(httputil.NewChunkedReader(body))
+	}
+
+	if encoding := header.Get("Content-Encoding"); encoding != "" {
+		switch encoding {
+		case "gzip":
+			body, err = gzip.NewReader(body)
+			if err != nil {
+				return nil, fmt.Errorf("gzip decoding failed: %w", err)
+			}
+		case "bzip2":
+			body = io.NopCloser(bzip2.NewReader(body))
+		case "zlib":
+			body, err = zlib.NewReader(body)
+			if err != nil {
+				return nil, fmt.Errorf("zlib decoding failed: %w", err)
+			}
+		default:
+			return nil, fmt.Errorf("unsupported compression method %q", encoding)
+		}
+	}
+
 	return &Response{
 		StatusLine: statusLine,
 		Header:     header,
-		Body: &ResponseBody{
-			r:    r,
-			conn: conn,
-		},
+		Body:       body,
 	}, nil
 }
 
@@ -85,9 +121,7 @@ func (req Request) RequestString() string {
 	sb.WriteString(fmt.Sprintf("connecting to %s\n", req.Url.host))
 	sb.WriteString(fmt.Sprintf("Sending request %s /%s HTTP/1.1\n", req.Method, req.Url.path))
 	for k, vs := range req.Header {
-		for _, v := range vs {
-			sb.WriteString(fmt.Sprintf("%s: %s\n", k, v))
-		}
+		sb.WriteString(fmt.Sprintf("%s: %s\n", k, strings.Join(vs, ", ")))
 	}
 	return sb.String()
 }
@@ -97,9 +131,7 @@ func (req Request) build() string {
 
 	buf.WriteString(fmt.Sprintf("%s /%s %s\r\n", req.Method, req.Url.path, Version))
 	for k, vs := range req.Header {
-		for _, v := range vs {
-			buf.WriteString(fmt.Sprintf("%s: %s\r\n", k, v))
-		}
+		buf.WriteString(fmt.Sprintf("%s: %s\r\n", k, strings.Join(vs, ", ")))
 	}
 
 	if req.Body != "" {
@@ -155,4 +187,8 @@ func readHttpLine(r *bufio.Reader) (string, error) {
 		return "", fmt.Errorf("missing \"\r\n\"")
 	}
 	return httpLine, nil
+}
+
+func hasChunked(value string) bool {
+	return strings.EqualFold(strings.TrimSpace(value), "chunked")
 }

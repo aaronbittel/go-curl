@@ -52,10 +52,11 @@ func (m *methodValue) Set(arg string) error {
 	return nil
 }
 
-var verbose bool
-var data string
-var headMethod bool
+var verboseFlag bool
+var dataFlag string
+var headMethodFlag bool
 var methodFlag methodValue = methodValue(http.MethodGet)
+var compressedFlag bool
 var headerFlag = make(headers)
 
 var positionalArgs = []string{"url"}
@@ -74,15 +75,16 @@ func init() {
 		headUsage   = "Use method HEAD"
 	)
 
-	flag.BoolVar(&verbose, "verbose", defaultVerbose, verboseUsage)
-	flag.BoolVar(&verbose, "v", defaultVerbose, verboseUsage+" (shorthand)")
+	flag.BoolVar(&verboseFlag, "verbose", defaultVerbose, verboseUsage)
+	flag.BoolVar(&verboseFlag, "v", defaultVerbose, verboseUsage+" (shorthand)")
 	flag.Var(&methodFlag, "X", "Specify method")
 	flag.Var(&headerFlag, "header", headerUsage)
 	flag.Var(&headerFlag, "H", headerUsage+" (shorthand)")
-	flag.StringVar(&data, "data", defaultData, dataUsage)
-	flag.StringVar(&data, "d", defaultData, dataUsage+" (shorthand)")
-	flag.BoolVar(&headMethod, "head", defaultHead, headUsage)
-	flag.BoolVar(&headMethod, "I", defaultHead, headUsage+" (shorthand)")
+	flag.StringVar(&dataFlag, "data", defaultData, dataUsage)
+	flag.StringVar(&dataFlag, "d", defaultData, dataUsage+" (shorthand)")
+	flag.BoolVar(&headMethodFlag, "head", defaultHead, headUsage)
+	flag.BoolVar(&headMethodFlag, "I", defaultHead, headUsage+" (shorthand)")
+	flag.BoolVar(&compressedFlag, "compressed", false, "Request a compressed response")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage %s <url>\n", os.Args[0])
@@ -112,19 +114,25 @@ func main() {
 	}
 
 	method := string(methodFlag)
-	if headMethod {
+	if headMethodFlag {
 		method = http.MethodHead
-		data = ""
+		dataFlag = ""
 	}
 
-	req := NewRequest(method, url, data)
+	req := NewRequest(method, url, dataFlag)
 	for k, vs := range headerFlag {
 		for _, v := range vs {
 			req.Header.Add(k, v)
 		}
 	}
 
-	if verbose {
+	if compressedFlag {
+		req.Header.Add("Accept-Encoding", "bzip2")
+		req.Header.Add("Accept-Encoding", "gzip")
+		req.Header.Add("Accept-Encoding", "zlib")
+	}
+
+	if verboseFlag {
 		printOutgoing(req.RequestString())
 	}
 
@@ -135,7 +143,7 @@ func main() {
 	}
 	defer resp.Body.Close()
 
-	if verbose {
+	if verboseFlag {
 		printIncoing(DumpResponse(resp))
 	}
 
@@ -145,7 +153,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if headMethod {
+	if headMethodFlag {
 		fmt.Println(resp.StatusLine)
 		for k, vs := range resp.Header {
 			for _, v := range vs {
